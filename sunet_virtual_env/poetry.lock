@@ -810,5 +810,5 @@ numpy = ["NumPy"]
 
 [metadata]
 lock-version = "2.0"
-python-versions = "^3.12"
-content-hash = "64226b9ea1e06a957120cbed0b806eca71ff8d7b5bcc65e1fed549e7b0bab449"
+python-versions = "^3.11"
+content-hash = "bb9e3e0c1cb270580a955dc64ea28795fab48ccf7abc466ad7daaf757cb63fe0"
