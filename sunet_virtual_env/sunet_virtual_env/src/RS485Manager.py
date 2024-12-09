@@ -4,14 +4,14 @@ import serial
 import crc16
 
 single_slave_msg = Struct(
-    "header" / Array(2, Int8ul),           # Two-byte header
+    "header" / Array(2, Int8ul), # Two-byte header
     "slave_id" / Int8ul,         # 8-bit unsigned integer for the reciever slave address
     "cmd" / Int16ul,             # 16-bit unsigned integer for the commanded value
-    "crc" / Int16ul,             # 16-bit unsigned integer for the crc
+    "check_sum" / Int8ul,        # 8-bit unsigned integer for the crc
 )
 
-single_slave_msg_no_crc = Struct(
-    "header" / Array(2, Int8ul),           # Two-byte header
+single_slave_msg_before_check = Struct(
+    "header" / Array(2, Int8ul), # Two-byte header
     "slave_id" / Int8ul,         # 8-bit unsigned integer for the reciever slave address
     "cmd" / Int16ul,             # 16-bit unsigned integer for the commanded value
 )
@@ -42,9 +42,9 @@ class RS485_bus():
         self.slave_addr = slave_address
         self.slave_cmd  = slave_command
         # Compute crc for message
-        self.__crc_compute()
+        self.__checksum_compute()
         # Pack the raw message
-        self.raw_msg = single_slave_msg.build(dict(header=k_ser_header, slave_id=self.slave_addr, cmd=self.slave_cmd, crc=self.crc_out))
+        self.raw_msg = single_slave_msg.build(dict(header=k_ser_header, slave_id=self.slave_addr, cmd=self.slave_cmd, check_sum=self.check_sum_out))
         # Send the message
         try:
             # Send the message over the serial port
@@ -53,12 +53,11 @@ class RS485_bus():
         except serial.SerialException as e:
             print(f"Error: {e}")
 
-    def __crc_compute(self):
-        # Pack the message excluding the yet-to-be-calculated CRC16 value
-        self.crc_in = single_slave_msg_no_crc.build(dict(header=k_ser_header, slave_id=self.slave_addr, cmd=self.slave_cmd))
-        # Compute CRC value using the CRC-16-CCITT algorithm
-        print(f"Message sent to crc: {self.crc_in.hex()}")
-        self.crc_out = crc16.crc16xmodem(self.crc_in)
+    def __checksum_compute(self):
+        # Pack the message excluding the yet-to-be-calculated checksum
+        self.check_sum_in = single_slave_msg_before_check.build(dict(header=k_ser_header, slave_id=self.slave_addr, cmd=self.slave_cmd))
+        # Compute checksum value using a modulo 256 [such that it fits in a byte]
+        self.check_sum_out = sum(self.check_sum_in)%256
 
     def __confirm_comms(self):
         # To be implemented!
