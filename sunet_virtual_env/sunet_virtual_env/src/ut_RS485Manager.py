@@ -6,7 +6,7 @@ import sys
 import numpy as np
 import serial
 import crc16
-from src.RS485Manager import RS485_bus
+from RS485Manager import RS485_bus
 
 def main():
     main_comms_bus = RS485_bus('/dev/ttyUSB0')
