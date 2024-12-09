@@ -1,9 +1,5 @@
 #!/usr/bin/env python3
-import time
-import struct
 import construct
-import sys
-import numpy as np
 import serial
 import crc16
 
