@@ -13,6 +13,9 @@ scipy = "^1.14.1"
 pygame = "^2.6.1"
 pyaudio = "^0.2.14"
 sounddevice = "^0.5.1"
+construct = "^2.10.70"
+pyserial = "^3.5"
+crc16 = "^0.1.1"
 
 
 [build-system]
