@@ -1,0 +1,23 @@
+[tool.poetry]
+name = "octave_lightbar_master"
+version = "0.1.0"
+description = "Poetry enviornment which hold the Python source code for the BASM Sound Pop-up ~Octave Lightbar~. This sub-project is only destined to run on the Master Node (Raspberry Pi), and handles all sound processing, FFT, and RS485 Transmitter Messages. For code running on the Slave Nodes (ESP-32), see octave_lightbar_slave"
+authors = ["Radu_Tolontan <radut@berkeley.edu>"]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.11"
+matplotlib = "^3.9.3"
+numpy = "^2.2.0"
+scipy = "^1.14.1"
+pygame = "^2.6.1"
+pyaudio = "^0.2.14"
+sounddevice = "^0.5.1"
+construct = "^2.10.70"
+pyserial = "^3.5"
+crc16 = "^0.1.1"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
