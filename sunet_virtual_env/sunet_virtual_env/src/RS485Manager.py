@@ -60,7 +60,7 @@ class RS485_bus():
         self.check_sum_out = sum(self.check_sum_in)%256
 
     def __confirm_comms(self):
-        # To be implemented!
+        # Implement handshake on initialization
         print("[RS485] - Comms Active!")
 
     def close_comms(self):

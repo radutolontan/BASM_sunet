@@ -6,7 +6,7 @@ import sys
 import numpy as np
 import serial
 import crc16
-from RS485Manager import RS485_bus
+from sunet_virtual_env.src.RS485Manager import RS485_bus
 
 
 def main():
