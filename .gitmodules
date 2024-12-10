@@ -1,3 +1,3 @@
-[submodule "sunet_virtual_env/sunet_virtual_env/submodules/Realtime_PyAudio_FFT"]
-	path = sunet_virtual_env/sunet_virtual_env/submodules/Realtime_PyAudio_FFT
+[submodule "octave_lightbar_master/octave_lightbar_master/submodules/Realtime_PyAudio_FFT"]
+	path = octave_lightbar_master/octave_lightbar_master/submodules/Realtime_PyAudio_FFT
 	url = git@github.com:aiXander/Realtime_PyAudio_FFT.git
