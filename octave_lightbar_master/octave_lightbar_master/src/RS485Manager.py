@@ -22,6 +22,7 @@ handshake_config_msg = Struct(
 
 k_ser_cmd_header = [0xDE, 0xAD] # Two-byte header for COMMAND MESSAGES
 k_ser_hs_header  = [0xFF, 0xFE] # Two-byte header for HANDSHAKE MESSAGES
+k_ser_timeout = 10              # Timeout in seconds for recieving serial messages
 all_connected_slave_addresses = [0x00]      # List consisting of Slave Board addresses connected to RS485 BUS
 slave_hs_ack_byte = 0xCA
 slave_config_params = [1]                   # Configuration Parameters for Slave Boards [CURRENTLY ONLY A DUMMY]
@@ -38,7 +39,8 @@ class RS485_bus():
                                 baudrate=self.bitrate,
                                 parity = serial.PARITY_NONE,
                                 bytesize=serial.EIGHTBITS,
-                                stopbits=serial.STOPBITS_ONE,    
+                                stopbits=serial.STOPBITS_ONE, 
+                                timeout=k_ser_timeout,   
                                 )
         
         if not self.ser.is_open:
@@ -46,7 +48,11 @@ class RS485_bus():
             self.ser.open()
 
         # Confirm communications from slave boards are active
-        self.__slave_handshake()
+        for addr in all_connected_slave_addresses:
+            self.__slave_handshake(slave_addr = addr)
+
+        print("[SERIAL] - ALL COMMS ACTIVE !")
+
             
     def send_cmd(self, slave_address, slave_command):
         # Compute checksum for message
@@ -71,28 +77,19 @@ class RS485_bus():
         # Compute checksum value using a modulo 256 [such that it fits in a byte]
         return sum(self.check_sum_in)%256
 
-    def __slave_handshake(self):
-        # CONFIRM BILATERAL COMMUNICATIONS TO ALL SLAVE (MONITOR) BOARDS [ESP32s]
-        #self.monitor_hs_confirmed = np.zeros(len(slave_addresses))
-
-        # [TODO] [DONE] IMPLEMENT DYNAMIC PAYLOAD LENGTH BASED ON len(slave_config_params)
-        # [TODO] IMPLEMENT CHECKING FOR ALL MONITOR/SLAVE BOARDS within slave_addresses
-        # [TODO] IMPLEMENT PARSING FOR HANDSHAKE ACKNOWLEDGE MESSAGES
-
-        # Send the handshake config message at 10 Hz until the handshake ack message is recieved
-        #self.all_handshakes_complete = 0
-        for addr in all_connected_slave_addresses:
-            # Send Configuration Handshake Message to Slave #i
-            self.__handshake_config(slave_address = addr)
-            # Process Acknowledge Handshake Message from Slave #i
-            self.read_frame(header_bytes = k_ser_hs_header, slave_address = addr)
-            # Confirm the ACK Bytes were recieved
-            if all(ord(self.new_frame[byte]) == slave_hs_ack_byte for byte in range(4,6)):
-                print("[SERIAL] - Established Comms. w. Slave Addr." + str(addr))
-            time.sleep(0.02)
-
-
-        print("[SERIAL] - ALL COMMS ACTIVE!")
+    def __slave_handshake(self, slave_addr):
+        '''
+        CONFIRM BILATERAL COMMUNICATION TO SLAVE (MONITOR) BOARDS [ESP32s]
+        '''
+        # Send Configuration Handshake Message to Slave #slave_address
+        print("[SERIAL] - Initiating Handshake w. Slave Addr." + str(slave_addr) + " ...")
+        self.__handshake_config(slave_address = slave_addr)
+        # Configure the read_frame method to recieve Handshake messages
+        self.read_frame(header_bytes = k_ser_hs_header, slave_address = slave_addr)
+        # Confirm the ACK Bytes were recieved
+        if all(ord(self.new_frame[byte]) == slave_hs_ack_byte for byte in range(4,6)):
+            print("[SERIAL] - Handshake OK w. Slave Addr." + str(slave_addr) + " !")
+        time.sleep(0.02)
 
     def __handshake_config(self, slave_address):
         '''
@@ -130,6 +127,9 @@ class RS485_bus():
                     print("[SERIAL] - Recieved Corrupted Msg. from Slave Addr." + str(slave_address))
         else:
             print("[SERIAL] - Timed-out waiting for Msg. from Slave Addr." + str(slave_address))
+            print("Retrying ...")
+            self.__slave_handshake(slave_address)
+
 
 
     def __find_sync(self, header_bytes, slave_address):
@@ -141,18 +141,21 @@ class RS485_bus():
         '''
         t_init = time.time()
         while True:
-            self.new_frame = [self.ser.read(size=1)]
-            if ord(self.new_frame[-1]) == header_bytes[0]:          # Check for first header byte
-                self.new_frame.append(self.ser.read(size=1))
-                if ord(self.new_frame[-1]) == header_bytes[1]:      # Check for second header byte
-                    self.new_frame.append(self.ser.read(size=1))
-                    if ord(self.new_frame[-1]) == slave_address:    # Check for the slave address
-                        return 1
+            # Try to read a new byte using the timeout defined in the __init__ method
+            new_byte = self.ser.read(size=1)
+
+            # Check if a byte was read
+            if new_byte:
+                if len(self.new_frame) == 0 and ord(new_byte) == header_bytes[0]:  # Check for first header byte
+                    self.new_frame = [new_byte]
+                if len(self.new_frame) == 1 and ord(new_byte) == header_bytes[1]:  # Check for second header byte
+                    self.new_frame.append(new_byte)
+                if len(self.new_frame) == 2 and ord(new_byte) == slave_address:    # Check for the slave address
+                    self.new_frame.append(new_byte)
+                    return 1
             
-            # TIMEOUT NOT IMPLEMENTED CORRECTLY
             # Check for timeout
-            print(time.time() - t_init)
-            if (time.time() - t_init > 5):
+            elif (time.time() - t_init > k_ser_timeout):
                 return 0
 
     def __read_data(self):
@@ -162,15 +165,23 @@ class RS485_bus():
         2. data_bytes (UINT_8) - as many as n = (frame_size - 5)
         3. checksum (UINT_8) - a modul0 256 checksum value
         '''
-        # Read the total frame size
-        self.new_frame.append(self.ser.read(size=1))
-        frame_size = ord(self.new_frame[-1])
+        t_init = time.time()
+        while True:
+            # Try to read a new byte using the timeout defined in the __init__ method
+            new_byte = self.ser.read(size=1)
 
-        # Read the n data bytes, and the checksum
-        for i in range (0, frame_size - 4):
-            self.new_frame.append(self.ser.read(size=1))
-
-        return 1
+            # Check if a byte was read
+            if new_byte:
+                # Append new byte to data frame
+                self.new_frame.append(new_byte)
+                if len(self.new_frame) == 4:                                       # Check for Frame Length byte
+                    frame_size = ord(self.new_frame[-1])
+                elif len(self.new_frame) == frame_size:
+                    return 1
+            
+            # Check for timeout
+            elif (time.time() - t_init > k_ser_timeout):
+                return 0
 
 
 
