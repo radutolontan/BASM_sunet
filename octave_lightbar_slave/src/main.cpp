@@ -51,31 +51,24 @@ void setup() {
     rec_conf_msg = serial_hs_config();
     delay(10);
   }
-
   Serial.println("[SLAVE ADDR. " + String(k_slave_addr) + "] - Recieved Config. Msg. from Master!");
+
+  // Send handshake - acknowledge message to RPi
   digitalWrite(RS485_RTS_Pin, HIGH);
+  serial_hs_ack();
+  Serial.println("[SLAVE ADDR. " + String(k_slave_addr) + "] - Sent Ack. Msg. to Master!");
+  delay(1000);
+  digitalWrite(RS485_RTS_Pin, LOW);
+
 }
 
 void loop() {
-  // Turn ON All LEDs
-  // for (int i = 0; i < 20; i++) {
-  //   // Access the value of I from the array
-  //   delay(1000);
-  //   setLEDs(i);    
-  //   delay(1000);
-  //   }
-  // Define a hex value (for example, 0xAB)
-  uint8_t hexValue = 0xAB;  // This packs 0xAB into a single byte
-  
-  // Send the packed byte via UART1
-  mySerial.write(hexValue);  // Send the byte over UART1
-
-  delay(50);
-  
+  //
 
 }
 
 bool serial_hs_config(){
+  // This function reads and parses byte-by-byte as it looks for a complete handshake configuration message from the RPi
   uint8_t serial_packet[256];
   if (mySerial.available()) {
       // Step 1: Wait for the first header byte
@@ -144,10 +137,18 @@ bool serial_hs_config(){
   }
   // If at any point a step is incomplete, return 0!
   return 0;
+  Serial.println("RUN, RETURNED EMPTY");
 }
 
 void serial_hs_ack(){
-  
+  // This function sends an acknowledge message to the RPi
+  // Create the ack frame with the checksum field set to 0
+  byte ack_frame[7] = {k_ser_hs_header[0], k_ser_hs_header[1], k_slave_addr, 0x07, 0xCA, 0xCA, 0x00};
+  // Compute outgoing message checksum and repack frame
+  uint8_t calculatedChecksum = calculateChecksum(ack_frame, 7);
+  ack_frame[6] = calculatedChecksum;
+  // Send the 7-byte frame
+  mySerial.write(ack_frame, 7);  // Write the entire frame of 7 bytes
 }
 
 uint8_t calculateChecksum(uint8_t *data, uint8_t length) {
