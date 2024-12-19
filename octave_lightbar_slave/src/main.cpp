@@ -1,165 +1,37 @@
 #include <Arduino.h>
 #include <HardwareSerial.h>
-
-// Create a HardwareSerial object for UART0
-HardwareSerial mySerial(2);
-
-// SLAVE ADDRESS CURRENTLY HARDCODED! WILL BE SELECTED USING DIPSWITCHES
-const uint8_t k_slave_addr = 0;
-
-// Serial frame headers for handhake and command messages
-const uint8_t k_ser_hs_header[]  = {0xFF, 0xFE}; // HEADER FOR HANDSHAKE MESSAGES
-const uint8_t k_ser_cmd_header[] = {0xDE, 0xAD}; // HEADER FOR COMMAND MESSAGES
+#include "RS485_bus.h"
+#include <vector>
+   
+// =========================================================
+const unsigned char k_slave_addr = 0x10; // === HARDCODED
+// =========================================================
 
 
 // put your setup code here, to run once:
 const uint8_t LED_GPIO_Pins[] = {15,2,0,4};
 const u_int8_t n_LED_GPIO_Pins = sizeof(LED_GPIO_Pins) / sizeof(LED_GPIO_Pins[0]);
-const uint8_t RS485_RTS_Pin = 18;
-
 
 const float k_factor = 1.0f;
 
 // Function Prototypes
 void setLEDs(int cmd);
-bool serial_hs_config();
-void serial_hs_ack();
-uint8_t calculateChecksum(uint8_t *data, uint8_t length);
+//bool serial_hs_config();
+//void serial_hs_ack();
+//uint8_t calculateChecksum(uint8_t *data, uint8_t length);
 
 // DEBUG FUNCTION PROTOTYPES
-void debugSerial(uint8_t byte);
-void debugMessage(uint8_t string);
+//void debugSerial(uint8_t byte);
+//void debugMessage(uint8_t string);
 
 
 void setup() {
-  // Initialize all GPIO LED CTRL Pins
-  for (int i = 0; i < n_LED_GPIO_Pins; i++) {
-      pinMode(LED_GPIO_Pins[i], OUTPUT);
-    }
-
-  // Initialize UART2 at a baud rate of 115200, w. RTS pin LOW
-  mySerial.begin(115200, SERIAL_8N1, 16, 17);  // RX = Pin 16, TX = Pin 17
-  pinMode(RS485_RTS_Pin, OUTPUT);
-  digitalWrite(RS485_RTS_Pin, LOW);
-  bool rec_conf_msg = 0;
-
-  // FOR DEBUGGING USE UART0 
-  Serial.begin(115200); // Initialize default serial for debugging (via USB)
-
-  // Read handshake - configuration message from RPi
-  while (rec_conf_msg != 1){
-    rec_conf_msg = serial_hs_config();
-    delay(10);
-  }
-  Serial.println("[SLAVE ADDR. " + String(k_slave_addr) + "] - Recieved Config. Msg. from Master!");
-
-  // Send handshake - acknowledge message to RPi
-  digitalWrite(RS485_RTS_Pin, HIGH);
-  serial_hs_ack();
-  Serial.println("[SLAVE ADDR. " + String(k_slave_addr) + "] - Sent Ack. Msg. to Master!");
-  delay(1000);
-  digitalWrite(RS485_RTS_Pin, LOW);
+RS485bus comms_bus(Serial2, k_slave_addr);
 
 }
 
 void loop() {
-  //
-
-}
-
-bool serial_hs_config(){
-  // This function reads and parses byte-by-byte as it looks for a complete handshake configuration message from the RPi
-  uint8_t serial_packet[256];
-  if (mySerial.available()) {
-      // Step 1: Wait for the first header byte
-      uint8_t header_byte_1 = mySerial.read();
-      debugSerial(header_byte_1);
-      Serial.println("HEADER1 OK!");
-      if (header_byte_1 == k_ser_hs_header[0]) {
-        // RECIEVED FIRST HEADER BYTE!
-        serial_packet[0] = header_byte_1;
-
-        if (mySerial.available()) {
-          // Step 2: Wait for the second header byte
-          uint8_t header_byte_2 = mySerial.read();
-          debugSerial(header_byte_2);
-          Serial.println("HEADER2 OK!");
-          if (header_byte_2 == k_ser_hs_header[1]) {
-            // RECIEVED SECOND HEADER BYTE!
-            serial_packet[1] = header_byte_2;
-
-            if (mySerial.available()) {
-              // Step 3: Wait for the correct slave address
-              uint8_t slave_addr = mySerial.read();
-              debugSerial(slave_addr);
-              Serial.println("SLAVE ADDR OK!");
-              if (slave_addr == k_slave_addr) {
-                // RECIEVED CORRECT SLAVE ADDRESS!
-                serial_packet[2] = slave_addr;
-
-                if (mySerial.available()) {
-                  // Step 4: Read the data length byte
-                  uint8_t payloadLength = mySerial.read();
-                  debugSerial(payloadLength);
-                  Serial.println("READ PKG LENGTH!");
-                  // RECIEVED NO. OF PAYLOAD BYTES!
-                  serial_packet[3] = payloadLength;
-
-                  // Step 5: Read the data bytes into a buffer
-                  int bytesRead = 4;
-                  while (bytesRead < (payloadLength - 1) && mySerial.available()) {
-                    serial_packet[bytesRead++] = mySerial.read();
-                    debugSerial(serial_packet[bytesRead-1]);
-                    Serial.println("READ PAYLOAD BYTE!");
-                  }
-                  // RECIEVED PAYLOAD BYTES
-
-                  if (mySerial.available()) {
-                    // Step 6: Read and verify checksum byte
-                    uint8_t receivedChecksum = mySerial.read();
-                    debugSerial(receivedChecksum);
-                    Serial.println("READ CHECKSUM BYTE!");
-                    uint8_t calculatedChecksum = calculateChecksum(serial_packet, bytesRead);
-
-                      if (receivedChecksum == calculatedChecksum) {
-                      // CHECKSUM VERIFIED
-                        serial_packet[bytesRead++] = receivedChecksum;
-                        Serial.println("CONFIGURATION PACKET RECIEVED!");
-                        return 1;
-                      }
-                  }
-                }
-              }
-            }
-          }
-        }
-      }
-  }
-  // If at any point a step is incomplete, return 0!
-  return 0;
-  Serial.println("RUN, RETURNED EMPTY");
-}
-
-void serial_hs_ack(){
-  // This function sends an acknowledge message to the RPi
-  // Create the ack frame with the checksum field set to 0
-  byte ack_frame[7] = {k_ser_hs_header[0], k_ser_hs_header[1], k_slave_addr, 0x07, 0xCA, 0xCA, 0x00};
-  // Compute outgoing message checksum and repack frame
-  uint8_t calculatedChecksum = calculateChecksum(ack_frame, 7);
-  ack_frame[6] = calculatedChecksum;
-  // Send the 7-byte frame
-  mySerial.write(ack_frame, 7);  // Write the entire frame of 7 bytes
-}
-
-uint8_t calculateChecksum(uint8_t *data, uint8_t length) {
-  uint32_t sum = 0;
-  for (int i = 0; i < length; i++) {
-    sum += data[i];
-  }
-  uint8_t checksum = sum % 256;
-  Serial.println("Computed Checksum - ");
-  Serial.print(checksum);
-  return checksum;
+  
 }
 
 void setLEDs(int cmd){
@@ -177,7 +49,7 @@ void setLEDs(int cmd){
     }
 }
 
-void debugSerial(uint8_t byte){
-  Serial.print("Received byte: ");
-  Serial.println(byte, HEX);
-}
+// void debugSerial(uint8_t byte){
+//   Serial.print("Received byte: ");
+//   Serial.println(byte, HEX);
+// }

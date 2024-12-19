@@ -23,7 +23,7 @@ handshake_config_msg = Struct(
 k_ser_cmd_header = [0xDE, 0xAD] # Two-byte header for COMMAND MESSAGES
 k_ser_hs_header  = [0xFF, 0xFE] # Two-byte header for HANDSHAKE MESSAGES
 k_ser_timeout = 10              # Timeout in seconds for recieving serial messages
-all_connected_slave_addresses = [0x00]      # List consisting of Slave Board addresses connected to RS485 BUS
+all_connected_slave_addresses = [0x10]      # List consisting of Slave Board addresses connected to RS485 BUS
 slave_hs_ack_byte = 0xCA
 slave_config_params = [1]                   # Configuration Parameters for Slave Boards [CURRENTLY ONLY A DUMMY]
 
@@ -53,7 +53,6 @@ class RS485_bus():
 
         print("[SERIAL] - ALL COMMS ACTIVE !")
 
-            
     def send_cmd(self, slave_address, slave_command):
         # Compute checksum for message
         checksum_in = single_slave_msg.build(dict(header=k_ser_cmd_header, slave_id=slave_address, cmd=slave_command, check_sum=0x00))
@@ -68,32 +67,28 @@ class RS485_bus():
         except serial.SerialException as e:
             print(f"Error: {e}")
 
-    def __checksum_compute(self, message):
-        # If the message frame is of type bytes, turn it into integers for summation
-        if all(isinstance(item, bytes) for item in message):
-            self.check_sum_in = [ord(byte) for byte in message]
-        else:
-            self.check_sum_in = message
-        # Compute checksum value using a modulo 256 [such that it fits in a byte]
-        return sum(self.check_sum_in)%256
-
     def __slave_handshake(self, slave_addr):
         '''
         CONFIRM BILATERAL COMMUNICATION TO SLAVE (MONITOR) BOARDS [ESP32s]
-        '''
-        # Send Configuration Handshake Message to Slave #slave_address
+        '''        
         print("[SERIAL] - Initiating Handshake w. Slave Addr." + str(slave_addr) + " ...")
-        self.__handshake_config(slave_address = slave_addr)
+        handshake_confirmed = 0
         # Configure the read_frame method to recieve Handshake messages
-        self.read_frame(header_bytes = k_ser_hs_header, slave_address = slave_addr)
-        # Confirm the ACK Bytes were recieved
-        if all(ord(self.new_frame[byte]) == slave_hs_ack_byte for byte in range(4,6)):
-            print("[SERIAL] - Handshake OK w. Slave Addr." + str(slave_addr) + " !")
+        while not handshake_confirmed:
+            # Send Configuration Handshake Message to Slave #slave_address
+            self.__send_config(slave_address = slave_addr)
+            # Try to read an ACK frame
+            if (self.read_frame(header_bytes = k_ser_hs_header, slave_address = slave_addr)):
+                # Confirm the ACK Bytes were recieved
+                if all(ord(self.new_frame[byte]) == slave_hs_ack_byte for byte in range(4,6)):
+                    handshake_confirmed = 1
+                    print("[SERIAL] - Handshake OK w. Slave Addr." + str(slave_addr) + " !")
+
         time.sleep(0.02)
 
-    def __handshake_config(self, slave_address):
+    def __send_config(self, slave_address):
         '''
-        SEND A CONFIGURATION MESSAGE TO THE SLAVE ESP32 BOARDS. This message is also used as a handshake 
+        SEND A CONFIGURATION MESSAGE TO THE SLAVE ESP32 BOARD. This message is also used as a handshake 
         to confirm TX on the RPI and RX on the ESP32
         '''
         # Compute checksum for outgoing configuration message
@@ -125,12 +120,12 @@ class RS485_bus():
                     return 1
                 else:
                     print("[SERIAL] - Recieved Corrupted Msg. from Slave Addr." + str(slave_address))
+                    print("Retrying ...")
+                    return 0
         else:
             print("[SERIAL] - Timed-out waiting for Msg. from Slave Addr." + str(slave_address))
             print("Retrying ...")
-            self.__slave_handshake(slave_address)
-
-
+            return 0
 
     def __find_sync(self, header_bytes, slave_address):
         '''
@@ -183,7 +178,14 @@ class RS485_bus():
             elif (time.time() - t_init > k_ser_timeout):
                 return 0
 
-
+    def __checksum_compute(self, message):
+        # If the message frame is of type bytes, turn it into integers for summation
+        if all(isinstance(item, bytes) for item in message):
+            self.check_sum_in = [ord(byte) for byte in message]
+        else:
+            self.check_sum_in = message
+        # Compute checksum value using a modulo 256 [such that it fits in a byte]
+        return sum(self.check_sum_in)%256
 
     def close_comms(self):
         if self.ser.is_open:
