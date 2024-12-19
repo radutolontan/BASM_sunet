@@ -33,31 +33,34 @@ RS485bus::RS485bus(HardwareSerial& serial_num, unsigned char slave_address):
     // ====== FOR DEBUGGING, ALSO INITIALIZE UART0 (via USB)
     // =========================================================
     Serial.begin(115200);
+    Serial.println("==========================  HANDSHAKE ==============================");
 
     // Complete the configuration and handshake with the master
-    master_handshake(kslave_addr);
+    master_handshake();
+
+    // =========================================================
+    // ====== FOR DEBUGGING, ALSO INITIALIZE UART0 (via USB)
+    // =========================================================
+    if (Serial) {
+        Serial.println("==========================  HANDSHAKE ==============================");
+        Serial.end();
+    }
 }
     
 // read_frame method definition
-bool RS485bus::read_frame(const std::vector<unsigned char>& header, const unsigned char slave_addr) {
+bool RS485bus::read_frame(const std::vector<unsigned char>& header) {
     // Clear the values of the last frame
     new_frame.clear();
 
     // Check if a sync sequence is found
-    if (find_sync(header, slave_addr) == true){
+    if (find_sync(header) == true){
         // Check if the data can be read
         if (read_data() == true){
             // Confirm checksum by ignoring the last byte in the new_frame
             std::vector<unsigned char> checksum_in(new_frame.begin(), new_frame.end() - 1);
             unsigned char checksum_out = checksum_compute(checksum_in);
-            Serial.println("[READ_FRAME] - Checksum computed ");
-            Serial.print(checksum_out);
-            Serial.println();
-            Serial.println("[READ_FRAME] - Checksum recieved ");
-            Serial.print(new_frame.back());
-            Serial.println();
             if (checksum_out == new_frame.back()){
-                Serial.println("[READ_FRAME] - Checksum CORRECT! ");
+                //Serial.println("[READ_FRAME] - Checksum CORRECT! ");
                 old_frame = new_frame;
                 return true;
             }
@@ -65,36 +68,30 @@ bool RS485bus::read_frame(const std::vector<unsigned char>& header, const unsign
             
         }
     }
-    Serial.println("[READ_FRAME] - ERROR!");
+    // Serial.println("[READ_FRAME] - ERROR!");
     return false; // For any error, return false
 }
 
 // checksum_compute method definition
 int RS485bus::checksum_compute(const std::vector<unsigned char>& frame) {
     int sum = 0;
-    Serial.println("[CHECKSUM_COMPUTE] - ENTERED");
-    Serial.println("[CHECKSUM_COMPUTE] - FRAME ");
-    for (unsigned char byte : frame) {
-        Serial.print(byte);  // Write each byte as raw data
-    }
-    Serial.println();
-
+    //Serial.println("[CHECKSUM_COMPUTE] - ENTERED");
+    //Serial.println("[CHECKSUM_COMPUTE] - FRAME ");
     for (unsigned char byte : frame) {
         sum += byte;
     }
-    
     // Cast the result of the chechsum back into byte format
     unsigned char check_sum= static_cast<unsigned char>(sum%256);
-    Serial.println("[CHECKSUM_COMPUTE] - CHECKSUM_OUT  ");
-    Serial.print(check_sum);
-    Serial.println();
+    //Serial.println("[CHECKSUM_COMPUTE] - CHECKSUM_OUT  ");
+    //Serial.print(check_sum);
+    //Serial.println();
     return check_sum;
 }
 
 // find_sync method definition
-bool RS485bus::find_sync(const std::vector<unsigned char>& header, const unsigned char slave_addr) {
+bool RS485bus::find_sync(const std::vector<unsigned char>& header) {
     
-    Serial.println("[FIND_SYNC] - ENTERED");
+    //Serial.println("[FIND_SYNC] - ENTERED");
 
     unsigned long t_init = millis();
   
@@ -102,23 +99,27 @@ bool RS485bus::find_sync(const std::vector<unsigned char>& header, const unsigne
         if (serialPort.available()){
             // Try to read one byte
             unsigned char new_byte = serialPort.read();
-            Serial.println("[FIND_SYNC] - RECIEVED BYTE " + String(new_byte));
+            //Serial.println("[FIND_SYNC] - RECIEVED BYTE " + String(new_byte));
 
             // If a byte was in fact recieved
             if (new_byte != -1) {
                 // Check for the sync sequence bytes
-                if (new_frame.size() == 0 && new_byte == header[0]){new_frame.push_back(new_byte);} // Check for header byte 1
-                if (new_frame.size() == 1 && new_byte == header[1]){new_frame.push_back(new_byte);} // Check for header byte 2
-                if (new_frame.size() == 2 && new_byte == slave_addr){                               // Check for slave address
-                    new_frame.push_back(new_byte);
-                    Serial.println("[FIND_SYNC] - FINISHED");
-                    return true;
+                if (new_frame.size() == 0 && new_byte == header[0]){new_frame.push_back(new_byte);}      // Check for header byte 1
+                else if (new_frame.size() == 1 && new_byte == header[1]){new_frame.push_back(new_byte);} // Check for header byte 2
+                    else if (new_frame.size() == 2){        // If we found the header bytes
+                        if (new_byte == kslave_addr){       // Correct slave address
+                            new_frame.push_back(new_byte);
+                            // Serial.println("[FIND_SYNC] - ADDRESS OK");
+                            return true;}
+                        else {                              // Incorrect slave address  
+                            // Serial.println("[FIND_SYNC] - INCORRECT ADDRESS");
+                            return false;}                 
                     }
-            }
+            } 
         }
     }
     // If a sync sequence was not recieved for TIMEOUT milliseconds, a timeout occured
-    Serial.println("[FIND_SYNC] - TIMED_OUT!");
+    //Serial.println("[FIND_SYNC] - TIMED_OUT!");
     return false;
 }
 
@@ -129,12 +130,12 @@ bool RS485bus::read_data() {
     unsigned long t_init = millis();
     int frame_size;
 
-    Serial.println("[READ_DATA] - ENTERED");
+    //Serial.println("[READ_DATA] - ENTERED");
   
     while (millis() - t_init < TIMEOUT) {
         // Try to read one byte
         unsigned char new_byte = serialPort.read();
-        Serial.println("[READ_DATA] - RECIEVED BYTE " + String(new_byte));
+        //Serial.println("[READ_DATA] - RECIEVED BYTE " + String(new_byte));
 
         // If a byte was in fact recieved
         if (new_byte != -1) {
@@ -142,7 +143,7 @@ bool RS485bus::read_data() {
             new_frame.push_back(new_byte);
             if (new_frame.size() == 4){frame_size = static_cast<int>(new_frame[3]);} // Store Frame Length
             else if (new_frame.size() == frame_size){                                // Check if all bytes have been recieved
-                Serial.println("[READ_DATA] - FINISHED");
+                //Serial.println("[READ_DATA] - FINISHED");
                 return true;
                 }                         
         }
@@ -153,13 +154,13 @@ bool RS485bus::read_data() {
 }
 
 // master_handshake method definition
-void RS485bus::master_handshake(const unsigned char slave_addr) {
+void RS485bus::master_handshake() {
     // Recieve Configuration / handshake message from Master (RPi) and respond with a handshake acknowledge message
     bool configuration_recieved = false;
 
     // Continously read messages until the configuration handshake message to the expected address is recieved 
     while (configuration_recieved == false){
-        if (read_frame(kser_hs_header, kslave_addr)){
+        if (read_frame(kser_hs_header)){
             // STORE THE CONFIGURATION INSIDE NEW_FRAME OR INSIDE OLD_FRAME
             configuration_recieved = true;
         }
@@ -170,11 +171,11 @@ void RS485bus::master_handshake(const unsigned char slave_addr) {
     }
 
     // IF ACKNOWLEDGE HANDSHAKE MESSAGE IS ENABLED (PENDING ALOCATION OF GPIO RTS PIN)
-    send_acknowledge(kslave_addr);
+    send_acknowledge();
 }
 
 // send_ack method definition
-void RS485bus::send_acknowledge(const unsigned char slave_addr) {
+void RS485bus::send_acknowledge() {
     // Set RTS pin HIGH to enable ESP32 to Write to the RS485 Bus
     digitalWrite(kser_RTS_pin, HIGH);
 

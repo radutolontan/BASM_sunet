@@ -8,14 +8,15 @@ import crc16
 single_slave_msg = Struct(
     "header" / Array(2, Int8ul), # Two-byte header
     "slave_id" / Int8ul,         # 8-bit unsigned integer for the reciever slave address
-    "cmd" / Int16ul,             # 16-bit unsigned integer for the commanded value
+    "frame_length" / Int8ul,     # 8-bit unsigned integer for the total number of bytes in packet (incl. header, slave address, payload length, checksum)
+    "cmd" / Int8ul,              # 8-bit unsigned integer for the commanded value
     "check_sum" / Int8ul,        # 8-bit unsigned integer for the modulo 256 checksum
 )
 
 handshake_config_msg = Struct(
     "header" / Array(2, Int8ul), # Two-byte header
     "slave_id" / Int8ul,         # 8-bit unsigned integer for the reciever slave address
-    "payload_length" / Int8ul,   # 8-bit unsigned integer for the total number of bytes in packet (incl. header, slave address, payload length, checksum)
+    "frame_length" / Int8ul,     # 8-bit unsigned integer for the total number of bytes in packet (incl. header, slave address, payload length, checksum)
     "config_param_1" / Int8ul,   # 8-bit unsigned integer for "CONFIG PARAM 1"
     "check_sum" / Int8ul,        # 8-bit unsigned integer for the modulo 256 checksum
 )
@@ -23,13 +24,12 @@ handshake_config_msg = Struct(
 k_ser_cmd_header = [0xDE, 0xAD] # Two-byte header for COMMAND MESSAGES
 k_ser_hs_header  = [0xFF, 0xFE] # Two-byte header for HANDSHAKE MESSAGES
 k_ser_timeout = 10              # Timeout in seconds for recieving serial messages
-all_connected_slave_addresses = [0x10]      # List consisting of Slave Board addresses connected to RS485 BUS
 slave_hs_ack_byte = 0xCA
 slave_config_params = [1]                   # Configuration Parameters for Slave Boards [CURRENTLY ONLY A DUMMY]
 
 
 class RS485_bus():
-    def __init__(self, port_ID):
+    def __init__(self, port_ID, connected_slaves):
         self.port_ID = port_ID
         self.bitrate = 115200
 
@@ -48,17 +48,17 @@ class RS485_bus():
             self.ser.open()
 
         # Confirm communications from slave boards are active
-        for addr in all_connected_slave_addresses:
+        for addr in connected_slaves:
             self.__slave_handshake(slave_addr = addr)
 
         print("[SERIAL] - ALL COMMS ACTIVE !")
 
     def send_cmd(self, slave_address, slave_command):
         # Compute checksum for message
-        checksum_in = single_slave_msg.build(dict(header=k_ser_cmd_header, slave_id=slave_address, cmd=slave_command, check_sum=0x00))
+        checksum_in = single_slave_msg.build(dict(header=k_ser_cmd_header, slave_id=slave_address, frame_length=0x06, cmd=slave_command, check_sum=0x00))
         checksum_out = self.__checksum_compute(checksum_in)
         # Pack message w. checksum
-        self.cmd_msg = single_slave_msg.build(dict(header=k_ser_cmd_header, slave_id=slave_address, cmd=slave_command, check_sum= checksum_out))
+        self.cmd_msg = single_slave_msg.build(dict(header=k_ser_cmd_header, slave_id=slave_address, frame_length=0x06, cmd=slave_command, check_sum= checksum_out))
         # Send the message
         try:
             # Send the message over the serial port
@@ -92,10 +92,10 @@ class RS485_bus():
         to confirm TX on the RPI and RX on the ESP32
         '''
         # Compute checksum for outgoing configuration message
-        checksum_in = handshake_config_msg.build(dict(header=k_ser_hs_header, slave_id=slave_address, payload_length = len(slave_config_params) + 5, config_param_1 = 0x01, check_sum=0x00))
+        checksum_in = handshake_config_msg.build(dict(header=k_ser_hs_header, slave_id=slave_address, frame_length = len(slave_config_params) + 5, config_param_1 = 0x01, check_sum=0x00))
         checksum_out = self.__checksum_compute(checksum_in)
         # Pack the raw message
-        self.config_msg = handshake_config_msg.build(dict(header=k_ser_hs_header, slave_id=slave_address, payload_length = len(slave_config_params) + 5, config_param_1 = 0x01, check_sum=checksum_out))
+        self.config_msg = handshake_config_msg.build(dict(header=k_ser_hs_header, slave_id=slave_address, frame_length = len(slave_config_params) + 5, config_param_1 = 0x01, check_sum=checksum_out))
         try:
             # Send the message over the serial port
             self.ser.write(self.config_msg)
@@ -143,12 +143,15 @@ class RS485_bus():
             if new_byte:
                 if len(self.new_frame) == 0 and ord(new_byte) == header_bytes[0]:  # Check for first header byte
                     self.new_frame = [new_byte]
-                if len(self.new_frame) == 1 and ord(new_byte) == header_bytes[1]:  # Check for second header byte
-                    self.new_frame.append(new_byte)
-                if len(self.new_frame) == 2 and ord(new_byte) == slave_address:    # Check for the slave address
-                    self.new_frame.append(new_byte)
-                    return 1
-            
+                elif len(self.new_frame) == 1 and ord(new_byte) == header_bytes[1]:# Check for second header byte
+                    self.new_frame.append(new_byte)    
+                elif len(self.new_frame) == 2:                                     # Check if both header bytes were recieved
+                    if ord(new_byte) == slave_address:                             # Correct slave address
+                        self.new_frame.append(new_byte)
+                        return 1
+                    else:                                                          # Correct slave address
+                        return 0
+
             # Check for timeout
             elif (time.time() - t_init > k_ser_timeout):
                 return 0
