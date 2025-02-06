@@ -25,7 +25,7 @@ k_ser_cmd_header = [0xDE, 0xAD] # Two-byte header for COMMAND MESSAGES
 k_ser_hs_header  = [0xFF, 0xFE] # Two-byte header for HANDSHAKE MESSAGES
 k_ser_timeout = 10              # Timeout in seconds for recieving serial messages
 slave_hs_ack_byte = 0xCA
-slave_config_params = [1]                   # Configuration Parameters for Slave Boards [CURRENTLY ONLY A DUMMY]
+slave_config_params = [1]       # Configuration Parameters for Slave Boards [CURRENTLY ONLY A DUMMY]
 
 
 class RS485_bus():

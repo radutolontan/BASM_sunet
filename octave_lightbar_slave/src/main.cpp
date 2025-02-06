@@ -2,9 +2,10 @@
 #include <HardwareSerial.h>
 #include "RS485_bus.h"
 #include <vector>
+#include <algorithm>
    
 // ==============================================================
-const unsigned char k_slave_addr = 0x0a; // === HARDCODED FOR NOW
+const unsigned char k_slave_addr = 0x05; // === HARDCODED FOR NOW
 // ==============================================================
 
 
@@ -12,7 +13,7 @@ const unsigned char k_slave_addr = 0x0a; // === HARDCODED FOR NOW
 const uint8_t LED_GPIO_Pins[] = {15,2,0,4,19};
 const u_int8_t n_LED_GPIO_Pins = sizeof(LED_GPIO_Pins) / sizeof(LED_GPIO_Pins[0]);
 
-const float k_factor = 0.0234375f;
+const float k_factor = 5.0f / 256;
 
 // Declare a pointer for the serial bus class object before setup
 RS485bus* comms_bus;
