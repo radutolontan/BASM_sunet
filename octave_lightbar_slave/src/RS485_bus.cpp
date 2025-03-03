@@ -10,7 +10,7 @@
 #include <Arduino.h>
 #include <HardwareSerial.h>
 #include <vector>
-#define TIMEOUT 5000
+#define TIMEOUT 2000
 
 // Constructor definition
 RS485bus::RS485bus(HardwareSerial& serial_num, unsigned char slave_address):
@@ -90,7 +90,7 @@ int RS485bus::checksum_compute(const std::vector<unsigned char>& frame) {
 
 // find_sync method definition
 bool RS485bus::find_sync(const std::vector<unsigned char>& header) {
-    
+
     //Serial.println("[FIND_SYNC] - ENTERED");
 
     unsigned long t_init = millis();
@@ -189,8 +189,8 @@ void RS485bus::send_acknowledge() {
     // Send the 7-byte frame
     serialPort.write(ack_frame.data(), 7);  
 
-    // Allow 1 sec. to elapse before setting the RTS pin LOW again
-    delay(1000);
+    // Allow 0.2 sec. to elapse before setting the RTS pin LOW again
+    delay(200);
     digitalWrite(kser_RTS_pin, LOW);
 }
  

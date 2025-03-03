@@ -23,7 +23,7 @@ handshake_config_msg = Struct(
 
 k_ser_cmd_header = [0xDE, 0xAD] # Two-byte header for COMMAND MESSAGES
 k_ser_hs_header  = [0xFF, 0xFE] # Two-byte header for HANDSHAKE MESSAGES
-k_ser_timeout = 10              # Timeout in seconds for recieving serial messages
+k_ser_timeout = 2              # Timeout in seconds for recieving serial messages
 slave_hs_ack_byte = 0xCA
 slave_config_params = [1]       # Configuration Parameters for Slave Boards [CURRENTLY ONLY A DUMMY]
 
@@ -83,8 +83,6 @@ class RS485_bus():
                 if all(ord(self.new_frame[byte]) == slave_hs_ack_byte for byte in range(4,6)):
                     handshake_confirmed = 1
                     print("[SERIAL] - Handshake OK w. Slave Addr." + str(slave_addr) + " !")
-
-        time.sleep(0.02)
 
     def __send_config(self, slave_address):
         '''
