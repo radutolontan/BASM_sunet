@@ -5,7 +5,6 @@
     or through an Adafruit NeoPixel LED strip
 */
 
-
 #include "ledcontroller.h"
 #include <stdint.h> 
 #include <Arduino.h>
@@ -18,24 +17,23 @@
 ledcontroller::ledcontroller(uint8_t output_type, std::vector<uint8_t> GPIO_handle, uint16_t LED_count):
             bar_type(output_type),
             GPIO(GPIO_handle),
-            output_count(LED_count){
+            output_count(LED_count),
+            kdefault_brightness(80){
 
     // Initialize the appropriate GPIO usage
     if (bar_type == 1) {
         // For NeoPixel Type
         // Initialize NeoPixel Strip
         strip = new Adafruit_NeoPixel(output_count, GPIO[0], NEO_GRB + NEO_KHZ800);
-        strip->begin();            // Initialize the strip
-        strip->show();             // Turn off all LEDs initially
-        strip->setBrightness(80);  // Adjust brightness (0-255)
-
+        strip->begin();                             // Initialize the strip
+        strip->show();                              // Turn off all LEDs initially
+        strip->setBrightness(kdefault_brightness);  // Adjust brightness (0-255)
         
-        // Initialize colors &
+        // Initialize color library and colormap
         import_colors();
     }
 }
     
-
 // import_colors method deffinition
 void ledcontroller::import_colors() {
 // Initialize Colors
@@ -48,27 +46,56 @@ void ledcontroller::import_colors() {
     colors_lib.push_back(Adafruit_NeoPixel::Color(255, 255, 255));  // White
 }
 
-void ledcontroller::create_state(uint32_t color_to_set, uint8_t no_LEDs) {
-    // Turn off all pixels
-    strip->clear();  
-
-    // Turn on the first 5 LEDs (set color to red for visibility)
-    for (int i = 0; i < no_LEDs; i++) {
-        strip->setPixelColor(i, color_to_set);
+// Methods to edit a frame by setting all first no_LEDs to color_to_set
+void ledcontroller::edit_bottom_fill(uint32_t color_to_set, uint8_t no_LEDs) {
+    if (bar_type == 1) { // FOR NEOPIXEL
+        // Turn on the first no_LEDs and set them to color_to_set
+        for (int i = 0; i < no_LEDs; i++) { 
+            strip->setPixelColor(i, color_to_set);
+        }
     }
-
-    // Apply changes to the strip
-    strip->show();  
 }
 
+// Method to create and display a frame for the boot state machine [AWAITING HANDSHAKE]
+void ledcontroller::display_fft(uint8_t no_LEDs){
+    if (bar_type == 1) { // FOR NEOPIXEL
+        // Turn off all pixels
+        strip->clear();  
+
+        // Build a 10 blue pixel tower
+        edit_bottom_fill(colors_lib[0], no_LEDs); // colors_lib[0] - RED
+
+        // Display changes on the strip
+        strip->show();  
+    }
+}
+
+// Method to create and display a frame for the boot state machine [AWAITING HANDSHAKE]
 void ledcontroller::display_boot(){
-    // Display 10 blue pixels
-    create_state(colors_lib[2], 10);
+    if (bar_type == 1) { // FOR NEOPIXEL
+        // Turn off all pixels
+        strip->clear();  
+
+        // Build a 10 blue pixel tower
+        edit_bottom_fill(colors_lib[2], 10); // colors_lib[2] - BLUE
+
+        // Display changes on the strip
+        strip->show();  
+    }
 }
 
+// Method to create and display a frame for the ready state machine [HANDSHAKE COMPLETE]
 void ledcontroller::display_ready(){
-    // Display 10 green pixels
-    create_state(colors_lib[1], 10);
+    if (bar_type == 1) { // FOR NEOPIXEL
+        // Turn off all pixels
+        strip->clear();  
+
+        // Build a 10 green pixel tower
+        edit_bottom_fill(colors_lib[1], 10); // colors_lib[1] - GREEN
+
+        // Display changes on the strip
+        strip->show();
+    }  
 }
 
 

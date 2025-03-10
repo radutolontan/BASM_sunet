@@ -31,7 +31,7 @@ class RS485bus {
     std::vector<unsigned char> old_frame;            // Byte vector for previous serial frame
 
   private:
-    // Provate variable prototypes 
+    // Private variable prototypes 
     HardwareSerial& serialPort;                      // Serial Port
     const uint8_t kser_rx_pin, kser_tx_pin;          // UART GPIO Pins
     const uint8_t kser_RTS_pin;                      // RTS GPIO Pin
