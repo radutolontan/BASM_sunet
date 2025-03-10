@@ -9,7 +9,10 @@ single_slave_msg = Struct(
     "header" / Array(2, Int8ul), # Two-byte header
     "slave_id" / Int8ul,         # 8-bit unsigned integer for the reciever slave address
     "frame_length" / Int8ul,     # 8-bit unsigned integer for the total number of bytes in packet (incl. header, slave address, payload length, checksum)
-    "cmd" / Int8ul,              # 8-bit unsigned integer for the commanded value
+    "cmd_1" / Int8ul,            # 8-bit unsigned integer for the commanded value [bar 1]
+    "cmd_2" / Int8ul,            # 8-bit unsigned integer for the commanded value [bar 2]
+    "cmd_3" / Int8ul,            # 8-bit unsigned integer for the commanded value [bar 3]
+    "cmd_4" / Int8ul,            # 8-bit unsigned integer for the commanded value [bar 4]
     "check_sum" / Int8ul,        # 8-bit unsigned integer for the modulo 256 checksum
 )
 
@@ -55,10 +58,10 @@ class RS485_bus():
 
     def send_cmd(self, slave_address, slave_command):
         # Compute checksum for message
-        checksum_in = single_slave_msg.build(dict(header=k_ser_cmd_header, slave_id=slave_address, frame_length=0x06, cmd=slave_command, check_sum=0x00))
+        checksum_in = single_slave_msg.build(dict(header=k_ser_cmd_header, slave_id=slave_address, frame_length=len(slave_command) + 5, cmd_1=slave_command[0], cmd_2=slave_command[1], cmd_3=slave_command[2], cmd_4=slave_command[3],check_sum=0x00))
         checksum_out = self.__checksum_compute(checksum_in)
         # Pack message w. checksum
-        self.cmd_msg = single_slave_msg.build(dict(header=k_ser_cmd_header, slave_id=slave_address, frame_length=0x06, cmd=slave_command, check_sum= checksum_out))
+        self.cmd_msg = single_slave_msg.build(dict(header=k_ser_cmd_header, slave_id=slave_address, frame_length=len(slave_command) + 5, cmd_1=slave_command[0], cmd_2=slave_command[1], cmd_3=slave_command[2], cmd_4=slave_command[3], check_sum= checksum_out))
         # Send the message
         try:
             # Send the message over the serial port

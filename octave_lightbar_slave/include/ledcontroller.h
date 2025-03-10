@@ -40,7 +40,7 @@ class ledcontroller {
   private:
     // Private variable prototypes 
     Adafruit_NeoPixel* strip;                        // NeoPixel Strip Pointer
-    const uint8_t kdefault_brightness;               // Default LED Brightness
+    const uint8_t kdefault_brightness;               // Default LED Brightness on Boot-up
 
     const uint8_t bar_type;                          // [0 for classic GPIO][1 for NeoPixel Strips]
     const std::vector<uint8_t> GPIO;                 // Vector of GPIO allocations [for NeoPixel, still pass a one-elem. vector for the GPIO pin connected to the Data line]

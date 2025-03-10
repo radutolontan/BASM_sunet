@@ -67,12 +67,19 @@ unsigned long endTime = 0;
   while (true){
     // Read CMD Message from Serial Port
     if (comms_bus->read_frame(comms_bus->kser_cmd_header)){
-      // Set first N LEDs to red
-      int no_to_turn_on = round(comms_bus->new_frame[4]*k_factor);
+      // Set first N LEDs to red 
+      std::vector<int> no_to_turn_on;
+      for (u_int8_t bar_index = 0; bar_index < 4; bar_index++){
+        no_to_turn_on.push_back(round(comms_bus->new_frame[4+bar_index]*k_factor));
+      }
+      
+
       // Call method on each LightBar instance
-      for (ledcontroller* lb : lightbar_vec) { // Pointer access
-        Serial.println("[SLAVE] - SENDING CMD " + String(no_to_turn_on));
-        lb->display_fft(no_to_turn_on); 
+      int bar_index = 0;
+      for (ledcontroller* lb : lightbar_vec) { 
+      Serial.println("BAR [" + String(bar_index) + "] - " + String(no_to_turn_on[bar_index]) + "]");
+        lb->display_fft(no_to_turn_on[bar_index]); 
+        bar_index+=1;
       }
 
 
@@ -83,11 +90,6 @@ unsigned long endTime = 0;
       executionTime = (endTime - startTime) / 1000000.0;  // Compute duration
       float freq_display = 1.0f / executionTime;
 
-      // DEBUG
-       //Serial.println(executionTime);
-      //Serial.println(endTime);
-      //Serial.println(startTime);
-      //Serial.println("[SLAVE] - DISP_FREQ " + String(freq_display));
 
       // RESET START TIME
       startTime = micros(); 
