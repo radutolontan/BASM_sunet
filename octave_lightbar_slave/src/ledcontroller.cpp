@@ -18,7 +18,7 @@ ledcontroller::ledcontroller(uint8_t output_type, std::vector<uint8_t> GPIO_hand
             bar_type(output_type),
             GPIO(GPIO_handle),
             output_count(LED_count),
-            kdefault_brightness(80){
+            kdefault_brightness(80){ 
 
     // Initialize the appropriate GPIO usage
     if (bar_type == 1) {
@@ -27,6 +27,7 @@ ledcontroller::ledcontroller(uint8_t output_type, std::vector<uint8_t> GPIO_hand
         strip = new Adafruit_NeoPixel(output_count, GPIO[0], NEO_GRB + NEO_KHZ800);
         strip->begin();                             // Initialize the strip
         strip->show();                              // Turn off all LEDs initially
+        // Initialize default brightness. It will be updated once config. param is recieved
         strip->setBrightness(kdefault_brightness);  // Adjust brightness (0-255)
         
         // Initialize color library and colormap
@@ -45,6 +46,15 @@ void ledcontroller::import_colors() {
     colors_lib.push_back(Adafruit_NeoPixel::Color(255, 0, 255));    // Magenta
     colors_lib.push_back(Adafruit_NeoPixel::Color(255, 255, 255));  // White
 }
+
+// Methods to update the brightness of an led strip
+void ledcontroller::config_brightness(uint8_t conf_brightness) {
+    if (bar_type == 1) { // FOR NEOPIXEL
+        // Turn on the first no_LEDs and set them to color_to_set
+        strip->setBrightness(conf_brightness);
+    }
+}
+
 
 // Methods to edit a frame by setting all first no_LEDs to color_to_set
 void ledcontroller::edit_bottom_fill(uint32_t color_to_set, uint8_t no_LEDs) {

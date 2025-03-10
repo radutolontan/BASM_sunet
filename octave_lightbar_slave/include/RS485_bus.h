@@ -27,6 +27,7 @@ class RS485bus {
     // Public variable prototypes (since they get called from outside the class)
     const std::vector<unsigned char> kser_cmd_header;// Header Bytes for Command Message Frame
     const unsigned char kslave_addr;                 // Slave Address
+    unsigned char kparam_brightness;                 // Parameter 1 - LED Brightness
     std::vector<unsigned char> new_frame;            // Byte vector for serial frame being read
     std::vector<unsigned char> old_frame;            // Byte vector for previous serial frame
 

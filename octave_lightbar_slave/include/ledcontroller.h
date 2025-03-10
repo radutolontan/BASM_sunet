@@ -31,6 +31,9 @@ class ledcontroller {
     // Method to create and display a frame for the FFT state machine [HANDSHAKE COMPLETE]
     void display_fft(uint8_t no_LEDs);
 
+    // Methods to update the brightness of an led strip
+    void config_brightness(uint8_t conf_brightness);
+
     // Public variable prototypes (since they get called from outside the class)
     std::vector<uint32_t> colors_lib;                // [NEOPIXEL] Color Library
     

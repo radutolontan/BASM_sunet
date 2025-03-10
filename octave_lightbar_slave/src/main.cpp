@@ -42,19 +42,19 @@ void setup() {
   If configured to respond, the ESP32 will send a handshake acknowledge message.*/
   comms_bus = new RS485bus(Serial2, k_slave_addr);
 
-  /*Initialize Lightbars and display ready-state
+  /*Update brightness and display ready-state
   */
   for (ledcontroller* lb : lightbar_vec) { 
-        lb->display_ready(); 
+      lb->config_brightness(comms_bus->kparam_brightness);
+      lb->display_ready(); 
   }
-
-
   // =========================================================
   // ====== FOR DEBUGGING, ALSO INITIALIZE UART0 (via USB)
   // =========================================================
   Serial.begin(115200);
-  Serial.println("==========================  APPLICATION ==============================");
+  Serial.println("==========================  INIT  ==============================");
 
+  
 }
 
 

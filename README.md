@@ -6,7 +6,8 @@ The project uses two types of frames, handshake and command.
 
 1. Hanshake [HS] messages are meant to configure the Slave Boards at run-time, and establish communications to the Master Board.
 - These are identified by a two-byte header [HEAD] {0xFF , 0xFE}
-- Each byte in the data field represents a parameter that the Master sends to all Slaves to configure at run-time EXCEPT
+- Each byte in the data field represents a parameter that the Master sends to all Slaves to configure at run-time
+    - Byte 1 - LED BRIGHTNESS ; 8-bit Integer [0-255]
 - If the Acknowledge [ACK] message is enabled, the Slave will respond after recieving the configuration message from the Master by sending the 0xCA byte twice.
 2. Command [CMD] messages are sent by the Master Board to each Slave Board to establish a command value.
 - These are identified by a two-byte header [HEAD] {0xDE , 0xAD}

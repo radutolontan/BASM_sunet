@@ -161,7 +161,8 @@ void RS485bus::master_handshake() {
     // Continously read messages until the configuration handshake message to the expected address is recieved 
     while (configuration_recieved == false){
         if (read_frame(kser_hs_header)){
-            // STORE THE CONFIGURATION INSIDE NEW_FRAME OR INSIDE OLD_FRAME
+            // STORE THE CONFIGURATION PARAMETERS
+            kparam_brightness = new_frame[4];
             configuration_recieved = true;
         }
         else{

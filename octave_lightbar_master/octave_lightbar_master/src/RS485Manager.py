@@ -17,7 +17,7 @@ handshake_config_msg = Struct(
     "header" / Array(2, Int8ul), # Two-byte header
     "slave_id" / Int8ul,         # 8-bit unsigned integer for the reciever slave address
     "frame_length" / Int8ul,     # 8-bit unsigned integer for the total number of bytes in packet (incl. header, slave address, payload length, checksum)
-    "config_param_1" / Int8ul,   # 8-bit unsigned integer for "CONFIG PARAM 1"
+    "config_param_1" / Int8ul,   # 8-bit unsigned integer for the DEFAULT LED BRIGHTNESS - "CONFIG PARAM 1"
     "check_sum" / Int8ul,        # 8-bit unsigned integer for the modulo 256 checksum
 )
 
@@ -29,7 +29,7 @@ slave_config_params = [1]       # Configuration Parameters for Slave Boards [CUR
 
 
 class RS485_bus():
-    def __init__(self, port_ID, connected_slaves):
+    def __init__(self, port_ID, connected_slaves, strip_brightness):
         self.port_ID = port_ID
         self.bitrate = 115200
 
@@ -49,7 +49,7 @@ class RS485_bus():
 
         # Confirm communications from slave boards are active
         for addr in connected_slaves:
-            self.__slave_handshake(slave_addr = addr)
+            self.__slave_handshake(slave_addr = addr, param1 = strip_brightness)
 
         print("[SERIAL] - ALL COMMS ACTIVE !")
 
@@ -67,7 +67,7 @@ class RS485_bus():
         except serial.SerialException as e:
             print(f"Error: {e}")
 
-    def __slave_handshake(self, slave_addr):
+    def __slave_handshake(self, slave_addr, param1):
         '''
         CONFIRM BILATERAL COMMUNICATION TO SLAVE (MONITOR) BOARDS [ESP32s]
         '''        
@@ -76,7 +76,8 @@ class RS485_bus():
         # Configure the read_frame method to recieve Handshake messages
         while not handshake_confirmed:
             # Send Configuration Handshake Message to Slave #slave_address
-            self.__send_config(slave_address = slave_addr)
+            self.__send_config(slave_address = slave_addr, config_1 = param1)
+                # config_1 is the Default LED Brightness
             # Try to read an ACK frame
             if (self.read_frame(header_bytes = k_ser_hs_header, slave_address = slave_addr)):
                 # Confirm the ACK Bytes were recieved
@@ -84,16 +85,16 @@ class RS485_bus():
                     handshake_confirmed = 1
                     print("[SERIAL] - Handshake OK w. Slave Addr." + str(slave_addr) + " !")
 
-    def __send_config(self, slave_address):
+    def __send_config(self, slave_address, config_1):
         '''
         SEND A CONFIGURATION MESSAGE TO THE SLAVE ESP32 BOARD. This message is also used as a handshake 
         to confirm TX on the RPI and RX on the ESP32
         '''
         # Compute checksum for outgoing configuration message
-        checksum_in = handshake_config_msg.build(dict(header=k_ser_hs_header, slave_id=slave_address, frame_length = len(slave_config_params) + 5, config_param_1 = 0x01, check_sum=0x00))
+        checksum_in = handshake_config_msg.build(dict(header=k_ser_hs_header, slave_id=slave_address, frame_length = len(slave_config_params) + 5, config_param_1 = config_1, check_sum=0x00))
         checksum_out = self.__checksum_compute(checksum_in)
         # Pack the raw message
-        self.config_msg = handshake_config_msg.build(dict(header=k_ser_hs_header, slave_id=slave_address, frame_length = len(slave_config_params) + 5, config_param_1 = 0x01, check_sum=checksum_out))
+        self.config_msg = handshake_config_msg.build(dict(header=k_ser_hs_header, slave_id=slave_address, frame_length = len(slave_config_params) + 5, config_param_1 = config_1, check_sum=checksum_out))
         try:
             # Send the message over the serial port
             self.ser.write(self.config_msg)
