@@ -13,7 +13,12 @@ all_connected_slave_addresses = [0x05, 0x0a]      # List consisting of Slave Boa
 def main():
     k_freq = 30 # Hz
     k_sample_rate = 1 / k_freq # Sec
-    main_comms_bus = RS485_bus('/dev/ttyUSB1', all_connected_slave_addresses)
+
+    # Compose Configuration Parameters 
+    k_pixel_brightness = 220 # uint8t [0-255]
+    k_config_vec = [k_pixel_brightness]
+    
+    main_comms_bus = RS485_bus('/dev/ttyUSB1', all_connected_slave_addresses, slave_config_params = k_config_vec)
 
     print(f"k_freq: {k_freq}")
     time.sleep(2)
@@ -26,7 +31,9 @@ def main():
         wait_complete_time = time.time()
         for slave_id in range(4,12):
             # Send message only when ready condition is true!
-            main_comms_bus.send_cmd(slave_id,slave_cmd%256)
+            cmd_vec = np.ones(4)*(slave_cmd%256)
+            cmd_vec_int = cmd_vec.astype(int)
+            main_comms_bus.send_cmd(slave_id,cmd_vec_int)
 
         print(f"actual_freq: {1/(time.time() - prev_time)}")
         print(f"ratio send/wait: {(time.time()-wait_complete_time)/(wait_complete_time-prev_time)}")

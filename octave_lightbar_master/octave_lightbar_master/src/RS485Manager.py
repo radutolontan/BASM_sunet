@@ -9,7 +9,10 @@ single_slave_msg = Struct(
     "header" / Array(2, Int8ul), # Two-byte header
     "slave_id" / Int8ul,         # 8-bit unsigned integer for the reciever slave address
     "frame_length" / Int8ul,     # 8-bit unsigned integer for the total number of bytes in packet (incl. header, slave address, payload length, checksum)
-    "cmd" / Int8ul,              # 8-bit unsigned integer for the commanded value
+    "cmd_1" / Int8ul,            # 8-bit unsigned integer for the commanded value [bar 1]
+    "cmd_2" / Int8ul,            # 8-bit unsigned integer for the commanded value [bar 2]
+    "cmd_3" / Int8ul,            # 8-bit unsigned integer for the commanded value [bar 3]
+    "cmd_4" / Int8ul,            # 8-bit unsigned integer for the commanded value [bar 4]
     "check_sum" / Int8ul,        # 8-bit unsigned integer for the modulo 256 checksum
 )
 
@@ -17,19 +20,18 @@ handshake_config_msg = Struct(
     "header" / Array(2, Int8ul), # Two-byte header
     "slave_id" / Int8ul,         # 8-bit unsigned integer for the reciever slave address
     "frame_length" / Int8ul,     # 8-bit unsigned integer for the total number of bytes in packet (incl. header, slave address, payload length, checksum)
-    "config_param_1" / Int8ul,   # 8-bit unsigned integer for "CONFIG PARAM 1"
+    "config_param_1" / Int8ul,   # 8-bit unsigned integer for the DEFAULT LED BRIGHTNESS - "CONFIG PARAM 1"
     "check_sum" / Int8ul,        # 8-bit unsigned integer for the modulo 256 checksum
 )
 
 k_ser_cmd_header = [0xDE, 0xAD] # Two-byte header for COMMAND MESSAGES
 k_ser_hs_header  = [0xFF, 0xFE] # Two-byte header for HANDSHAKE MESSAGES
-k_ser_timeout = 10              # Timeout in seconds for recieving serial messages
+k_ser_timeout = 2              # Timeout in seconds for recieving serial messages
 slave_hs_ack_byte = 0xCA
-slave_config_params = [1]       # Configuration Parameters for Slave Boards [CURRENTLY ONLY A DUMMY]
 
 
 class RS485_bus():
-    def __init__(self, port_ID, connected_slaves):
+    def __init__(self, port_ID, connected_slaves, slave_config_params):
         self.port_ID = port_ID
         self.bitrate = 115200
 
@@ -49,16 +51,16 @@ class RS485_bus():
 
         # Confirm communications from slave boards are active
         for addr in connected_slaves:
-            self.__slave_handshake(slave_addr = addr)
+            self.__slave_handshake(slave_addr = addr, config_params = slave_config_params)
 
         print("[SERIAL] - ALL COMMS ACTIVE !")
 
     def send_cmd(self, slave_address, slave_command):
         # Compute checksum for message
-        checksum_in = single_slave_msg.build(dict(header=k_ser_cmd_header, slave_id=slave_address, frame_length=0x06, cmd=slave_command, check_sum=0x00))
+        checksum_in = single_slave_msg.build(dict(header=k_ser_cmd_header, slave_id=slave_address, frame_length=len(slave_command) + 5, cmd_1=slave_command[0], cmd_2=slave_command[1], cmd_3=slave_command[2], cmd_4=slave_command[3],check_sum=0x00))
         checksum_out = self.__checksum_compute(checksum_in)
         # Pack message w. checksum
-        self.cmd_msg = single_slave_msg.build(dict(header=k_ser_cmd_header, slave_id=slave_address, frame_length=0x06, cmd=slave_command, check_sum= checksum_out))
+        self.cmd_msg = single_slave_msg.build(dict(header=k_ser_cmd_header, slave_id=slave_address, frame_length=len(slave_command) + 5, cmd_1=slave_command[0], cmd_2=slave_command[1], cmd_3=slave_command[2], cmd_4=slave_command[3], check_sum= checksum_out))
         # Send the message
         try:
             # Send the message over the serial port
@@ -67,7 +69,7 @@ class RS485_bus():
         except serial.SerialException as e:
             print(f"Error: {e}")
 
-    def __slave_handshake(self, slave_addr):
+    def __slave_handshake(self, slave_addr, config_params):
         '''
         CONFIRM BILATERAL COMMUNICATION TO SLAVE (MONITOR) BOARDS [ESP32s]
         '''        
@@ -76,7 +78,8 @@ class RS485_bus():
         # Configure the read_frame method to recieve Handshake messages
         while not handshake_confirmed:
             # Send Configuration Handshake Message to Slave #slave_address
-            self.__send_config(slave_address = slave_addr)
+            self.__send_config(slave_address = slave_addr, config_vec = config_params)
+                # config_1 is the Default LED Brightness
             # Try to read an ACK frame
             if (self.read_frame(header_bytes = k_ser_hs_header, slave_address = slave_addr)):
                 # Confirm the ACK Bytes were recieved
@@ -84,18 +87,16 @@ class RS485_bus():
                     handshake_confirmed = 1
                     print("[SERIAL] - Handshake OK w. Slave Addr." + str(slave_addr) + " !")
 
-        time.sleep(0.02)
-
-    def __send_config(self, slave_address):
+    def __send_config(self, slave_address, config_vec):
         '''
         SEND A CONFIGURATION MESSAGE TO THE SLAVE ESP32 BOARD. This message is also used as a handshake 
         to confirm TX on the RPI and RX on the ESP32
         '''
         # Compute checksum for outgoing configuration message
-        checksum_in = handshake_config_msg.build(dict(header=k_ser_hs_header, slave_id=slave_address, frame_length = len(slave_config_params) + 5, config_param_1 = 0x01, check_sum=0x00))
+        checksum_in = handshake_config_msg.build(dict(header=k_ser_hs_header, slave_id=slave_address, frame_length = len(config_vec) + 5, config_param_1 = config_vec[0], check_sum=0x00))
         checksum_out = self.__checksum_compute(checksum_in)
         # Pack the raw message
-        self.config_msg = handshake_config_msg.build(dict(header=k_ser_hs_header, slave_id=slave_address, frame_length = len(slave_config_params) + 5, config_param_1 = 0x01, check_sum=checksum_out))
+        self.config_msg = handshake_config_msg.build(dict(header=k_ser_hs_header, slave_id=slave_address, frame_length = len(config_vec) + 5, config_param_1 = config_vec[0], check_sum=checksum_out))
         try:
             # Send the message over the serial port
             self.ser.write(self.config_msg)
