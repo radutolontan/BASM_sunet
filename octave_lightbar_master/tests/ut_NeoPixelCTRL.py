@@ -13,8 +13,12 @@ all_connected_slave_addresses = [0x05, 0x0a]      # List consisting of Slave Boa
 def main():
     k_freq = 30 # Hz
     k_sample_rate = 1 / k_freq # Sec
-    k_pixel_brightness = 20 # uint8t [0-255]
-    main_comms_bus = RS485_bus('/dev/ttyUSB1', all_connected_slave_addresses, strip_brightness = k_pixel_brightness)
+
+    # Compose Configuration Parameters 
+    k_pixel_brightness = 220 # uint8t [0-255]
+    k_config_vec = [k_pixel_brightness]
+    
+    main_comms_bus = RS485_bus('/dev/ttyUSB1', all_connected_slave_addresses, slave_config_params = k_config_vec)
 
     print(f"k_freq: {k_freq}")
     time.sleep(2)
