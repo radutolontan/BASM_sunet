@@ -20,7 +20,7 @@ from matplotlib.animation import FuncAnimation
 
 # ======= CONFIG. PARAMS ========
 # How often FFT features + Slave Boards are commanded
-k_freq = 45 # Hz
+k_freq = 30 # Hz
 k_sample_rate = 1 / k_freq # Sec
 # Compose Configuration Parameters for Slave Boards
 all_connected_slave_addresses = [0x05, 0x0a]      # List consisting of Slave Board addresses connected to RS485 BUS
@@ -73,7 +73,7 @@ def run_lightbar():
                     updates_per_second  = 500,   # How often to read the audio stream for new data
                     smoothing_length_ms = 50,    # Apply some temporal smoothing to reduce noisy features
                     n_frequency_bins = 8,        # The FFT features are grouped in bins
-                    visualize = 0,               # Visualize the FFT features with PyGame
+                    visualize = 1,               # Visualize the FFT features with PyGame
                     verbose   = args.verbose,    # Print running statistics (latency, fps, ...)
                     height    = args.height,     # Height, in pixels, of the visualizer window,
                     window_ratio = window_ratio  # Float ratio of the visualizer window. e.g. 24/9
@@ -100,7 +100,7 @@ def run_lightbar():
 
             # Rescale, round to int & clip binned_fft vals
             rescaled_bins_fft = np.clip(np.round(binned_fft / k_max_binned_value * k_byte_max).astype(int), 0, 255)
-
+            print(f"rescaled_binned_fft {rescaled_bins_fft};")
             for slave_id in [10,5]:
                 # Build command vectors
                 if slave_id == 10:
