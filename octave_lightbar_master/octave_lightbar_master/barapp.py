@@ -1,8 +1,8 @@
 # Import submodules and modify sys.py to find helper functions for Stream_analyzer
-from submodules.Realtime_PyAudio_FFT.src.stream_analyzer import Stream_Analyzer
 import sys
 import os
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "submodules/Realtime_PyAudio_FFT")))
+from submodules.Realtime_PyAudio_FFT.src.stream_analyzer import Stream_Analyzer
 
 import argparse
 import time
