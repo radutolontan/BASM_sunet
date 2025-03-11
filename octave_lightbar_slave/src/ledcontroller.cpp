@@ -41,6 +41,7 @@ void ledcontroller::import_colors() {
     colors_lib.push_back(Adafruit_NeoPixel::Color(255, 0, 0));      // Red
     colors_lib.push_back(Adafruit_NeoPixel::Color(0, 255, 0));      // Green
     colors_lib.push_back(Adafruit_NeoPixel::Color(0, 0, 255));      // Blue
+    colors_lib.push_back(Adafruit_NeoPixel::Color(255, 165, 0));    // Orange
     colors_lib.push_back(Adafruit_NeoPixel::Color(255, 255, 0));    // Yellow
     colors_lib.push_back(Adafruit_NeoPixel::Color(0, 255, 255));    // Cyan
     colors_lib.push_back(Adafruit_NeoPixel::Color(255, 0, 255));    // Magenta
@@ -72,8 +73,8 @@ void ledcontroller::display_fft(uint8_t no_LEDs){
         // Turn off all pixels
         strip->clear();  
 
-        // Build a 10 blue pixel tower
-        edit_bottom_fill(colors_lib[0], no_LEDs); // colors_lib[0] - RED
+        // Build a no_LEDs Orange pixel tower
+        edit_bottom_fill(colors_lib[3], no_LEDs); // colors_lib[3] - ORANGE
 
         // Display changes on the strip
         strip->show();  
