@@ -24,6 +24,7 @@ To communicate between the Master MCU and Monitor (or Slave) MCUs, the repositor
 - These are identified by a two-byte header [HEAD] {0xDE , 0xAD}
 - Each byte in the data field represents a command to a specific lightbar on a Slave board
     - in frame `0xDE 0xAD 0x05 0x09 0x02 0x04 0x06 0x08 0xAA`
+        - Slave Board 5 [Address`0x05`] controls 4 Bars (4 Bytes in the Data Field)
         - `0x02` is the level requested from Bar 1 on Slave 5
         - `0x04` is the level requested from Bar 2 on Slave 5
         - `0xAA` is just a placeholder for the Checksum
