@@ -20,7 +20,7 @@ from matplotlib.animation import FuncAnimation
 
 # ======= CONFIG. PARAMS ========
 # How often FFT features + Slave Boards are commanded
-k_freq = 30 # Hz
+k_freq = 60 # Hz
 k_sample_rate = 1 / k_freq # Sec
 # Compose Configuration Parameters for Slave Boards
 all_connected_slave_addresses = [0x05, 0x0a]      # List consisting of Slave Board addresses connected to RS485 BUS
