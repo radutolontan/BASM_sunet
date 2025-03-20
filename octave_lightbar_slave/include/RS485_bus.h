@@ -16,7 +16,7 @@
 class RS485bus {
   public:
     // Constructor
-    RS485bus(HardwareSerial& serial_num, unsigned char slave_address);
+    RS485bus(HardwareSerial& serial_num, unsigned char slave_address, bool debugmode);
     
     // Method to read a frame (used for both handshake and command messages)
     bool read_frame(const std::vector<unsigned char>& header);
@@ -27,7 +27,9 @@ class RS485bus {
     // Public variable prototypes (since they get called from outside the class)
     const std::vector<unsigned char> kser_cmd_header;// Header Bytes for Command Message Frame
     const unsigned char kslave_addr;                 // Slave Address
-    unsigned char kparam_brightness;                 // Parameter 1 - LED Brightness
+    unsigned char kparam_brightness;                 // Parameter 1 - LED Brightness [Byte - uint8 between 0 and 255]
+    unsigned char kparam_colormap;                   // Parameter 2 - Colormap [to load] [0-static color (no colormap)][1-n colormap no.]
+    unsigned char kparam_slavenum;                   // Parameter 3 - The physical order the slave board is connected in
     std::vector<unsigned char> new_frame;            // Byte vector for serial frame being read
     std::vector<unsigned char> old_frame;            // Byte vector for previous serial frame
 
@@ -38,6 +40,7 @@ class RS485bus {
     const uint8_t kser_RTS_pin;                      // RTS GPIO Pin
     const int kser_baud;                             // Serial Communications Baudrate
     const std::vector<unsigned char> kser_hs_header; // Header Bytes for Handshake Message Frame
+    const bool debug_mode;
 
     // Method to compute frame checksum
     int checksum_compute(const std::vector<unsigned char>& frame);

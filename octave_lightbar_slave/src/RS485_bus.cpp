@@ -13,7 +13,7 @@
 #define TIMEOUT 2000
 
 // Constructor definition
-RS485bus::RS485bus(HardwareSerial& serial_num, unsigned char slave_address):
+RS485bus::RS485bus(HardwareSerial& serial_num, unsigned char slave_address, bool debugmode):
             serialPort(serial_num),
             kslave_addr(slave_address),
             kser_baud(115200),
@@ -21,7 +21,8 @@ RS485bus::RS485bus(HardwareSerial& serial_num, unsigned char slave_address):
             kser_tx_pin(17),
             kser_RTS_pin(18),
             kser_hs_header({0xFF, 0xFE}),
-            kser_cmd_header({0xDE, 0xAD}){
+            kser_cmd_header({0xDE, 0xAD}),
+            debug_mode(debugmode){
 
     // Initialize UART2 using the TX/RX Pins
     serialPort.begin(kser_baud, SERIAL_8N1, kser_rx_pin, kser_tx_pin);
@@ -29,22 +30,10 @@ RS485bus::RS485bus(HardwareSerial& serial_num, unsigned char slave_address):
     pinMode(kser_RTS_pin, OUTPUT);
     digitalWrite(kser_RTS_pin, LOW);
 
-    // =========================================================
-    // ====== FOR DEBUGGING, ALSO INITIALIZE UART0 (via USB)
-    // =========================================================
-    Serial.begin(115200);
-    Serial.println("==========================  HANDSHAKE ==============================");
-
     // Complete the configuration and handshake with the master
     master_handshake();
 
-    // =========================================================
-    // ====== FOR DEBUGGING, ALSO INITIALIZE UART0 (via USB)
-    // =========================================================
-    if (Serial) {
-        Serial.println("==========================  HANDSHAKE ==============================");
-        Serial.end();
-    }
+    
 }
     
 // read_frame method definition
@@ -163,11 +152,21 @@ void RS485bus::master_handshake() {
         if (read_frame(kser_hs_header)){
             // STORE THE CONFIGURATION PARAMETERS
             kparam_brightness = new_frame[4];
+            kparam_colormap = new_frame[5];
+            kparam_slavenum = new_frame[6];
             configuration_recieved = true;
+            if (debug_mode){
+                Serial.println("[RS485_bus] - [SUCCESS] - Addr. " + String(kslave_addr)+" - Recieved Config!");
+                Serial.println("[RS485_bus] - [INFO] - set [kparam_brightness] - "+ String(kparam_brightness));
+                Serial.println("[RS485_bus] - [INFO] - set [kparam_colormap] - "+ String(kparam_colormap));
+                Serial.println("[RS485_bus] - [INFO] - set [kparam_slavenum] - "+ String(kparam_slavenum));
+            } 
         }
         else{
             delay(20);
-            Serial.println("[MASTER_HANDSHAKE] - RETRY!");
+            if (debug_mode){
+                Serial.println("[RS485_bus] - [INFO] - Addr. " + String(kslave_addr)+" - Waiting for Master Handshake ...");
+            } 
         }
     }
 
@@ -193,5 +192,8 @@ void RS485bus::send_acknowledge() {
     // Allow 0.2 sec. to elapse before setting the RTS pin LOW again
     delay(200);
     digitalWrite(kser_RTS_pin, LOW);
+    if (debug_mode){
+        Serial.println("[RS485_bus] - [SUCCESS] - Addr. " + String(kslave_addr)+" - ACK HS Message Sent!");
+    } 
 }
  
