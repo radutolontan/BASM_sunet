@@ -19,6 +19,8 @@ To communicate between the Master MCU and Monitor (or Slave) MCUs, the repositor
 - These are identified by a two-byte header [HEAD] {0xFF , 0xFE}
 - Each byte in the data field represents a parameter that the Master sends to all Slaves to configure at run-time
     - Byte 1 - LED BRIGHTNESS ; 8-bit Integer [0-255]
+    - Byte 2 - COLORMAP ID ; 8-bit Integer [0-255] ; See Loading Colormaps section for more details
+    - Byte 3 - SLAVE NO ; Order of Slave MCU in chain ; [NOT TO BE CONFUSED W. SLAVE ADDRESS] ; 8-bit Integer [0-255] 
 - If the Acknowledge [ACK] message is enabled, the Slave will respond after recieving the configuration message from the Master by sending the 0xCA byte twice.
 2. **Command [CMD]** messages are sent by the Master Board to each Slave Board to establish command values to the lightbars controlled by each Slave.
 - These are identified by a two-byte header [HEAD] {0xDE , 0xAD}
