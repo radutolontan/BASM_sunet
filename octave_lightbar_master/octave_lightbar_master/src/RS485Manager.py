@@ -20,13 +20,15 @@ handshake_config_msg = Struct(
     "header" / Array(2, Int8ul), # Two-byte header
     "slave_id" / Int8ul,         # 8-bit unsigned integer for the reciever slave address
     "frame_length" / Int8ul,     # 8-bit unsigned integer for the total number of bytes in packet (incl. header, slave address, payload length, checksum)
-    "config_param_1" / Int8ul,   # 8-bit unsigned integer for the DEFAULT LED BRIGHTNESS - "CONFIG PARAM 1"
+    "config_param_1" / Int8ul,   # 8-bit unsigned integer for the Commanded LED BRIGHTNESS - "CONFIG PARAM 1"
+    "config_param_2" / Int8ul,   # 8-bit unsigned integer for the Colormap ID - "CONFIG PARAM 2"
+    "config_param_3" / Int8ul,   # 8-bit unsigned integer for the Slave Number in Chain - "CONFIG PARAM 3"
     "check_sum" / Int8ul,        # 8-bit unsigned integer for the modulo 256 checksum
 )
 
 k_ser_cmd_header = [0xDE, 0xAD] # Two-byte header for COMMAND MESSAGES
 k_ser_hs_header  = [0xFF, 0xFE] # Two-byte header for HANDSHAKE MESSAGES
-k_ser_timeout = 2              # Timeout in seconds for recieving serial messages
+k_ser_timeout = 2               # Timeout in seconds for recieving serial messages
 slave_hs_ack_byte = 0xCA
 
 
@@ -49,23 +51,38 @@ class RS485_bus():
             # Open serial port if not already available
             self.ser.open()
 
-        # Confirm communications from slave boards are active
-        for addr in connected_slaves:
-            self.__slave_handshake(slave_addr = addr, config_params = slave_config_params)
+        # Send configuration message to slave boards and confirm handshake
+        for index, addr in enumerate(connected_slaves):
+            # Append the slave index to the end of the slave configuration parameters vector
+            self.__slave_handshake(slave_addr = addr, config_params = slave_config_params + [index])
 
         print("[SERIAL] - ALL COMMS ACTIVE !")
 
     def send_cmd(self, slave_address, slave_command):
         # Compute checksum for message
-        checksum_in = single_slave_msg.build(dict(header=k_ser_cmd_header, slave_id=slave_address, frame_length=len(slave_command) + 5, cmd_1=slave_command[0], cmd_2=slave_command[1], cmd_3=slave_command[2], cmd_4=slave_command[3],check_sum=0x00))
+        checksum_in = single_slave_msg.build(dict(header=k_ser_cmd_header, 
+                                                slave_id=slave_address, 
+                                                frame_length=len(slave_command) + 5, 
+                                                cmd_1=slave_command[0], 
+                                                cmd_2=slave_command[1], 
+                                                cmd_3=slave_command[2], 
+                                                cmd_4=slave_command[3],
+                                                check_sum=0x00))
         checksum_out = self.__checksum_compute(checksum_in)
         # Pack message w. checksum
-        self.cmd_msg = single_slave_msg.build(dict(header=k_ser_cmd_header, slave_id=slave_address, frame_length=len(slave_command) + 5, cmd_1=slave_command[0], cmd_2=slave_command[1], cmd_3=slave_command[2], cmd_4=slave_command[3], check_sum= checksum_out))
+        self.cmd_msg = single_slave_msg.build(dict(header=k_ser_cmd_header, 
+                                                slave_id=slave_address, 
+                                                frame_length=len(slave_command) + 5, 
+                                                cmd_1=slave_command[0], 
+                                                cmd_2=slave_command[1], 
+                                                cmd_3=slave_command[2], 
+                                                cmd_4=slave_command[3], 
+                                                check_sum= checksum_out))
         # Send the message
         try:
             # Send the message over the serial port
             self.ser.write(self.cmd_msg)
-            print(f"Message sent: {self.cmd_msg.hex()}")
+            #print(f"Message sent: {self.cmd_msg.hex()}")
         except serial.SerialException as e:
             print(f"Error: {e}")
 
@@ -79,7 +96,9 @@ class RS485_bus():
         while not handshake_confirmed:
             # Send Configuration Handshake Message to Slave #slave_address
             self.__send_config(slave_address = slave_addr, config_vec = config_params)
-                # config_1 is the Default LED Brightness
+                # config_params[0] is the LED Brightness
+                # config_params[1] is the colormap_id
+                # config_params[2] is the slave no.
             # Try to read an ACK frame
             if (self.read_frame(header_bytes = k_ser_hs_header, slave_address = slave_addr)):
                 # Confirm the ACK Bytes were recieved
@@ -93,10 +112,22 @@ class RS485_bus():
         to confirm TX on the RPI and RX on the ESP32
         '''
         # Compute checksum for outgoing configuration message
-        checksum_in = handshake_config_msg.build(dict(header=k_ser_hs_header, slave_id=slave_address, frame_length = len(config_vec) + 5, config_param_1 = config_vec[0], check_sum=0x00))
+        checksum_in = handshake_config_msg.build(dict(header=k_ser_hs_header, 
+                                                        slave_id=slave_address, 
+                                                        frame_length = len(config_vec) + 5, 
+                                                        config_param_1 = config_vec[0], 
+                                                        config_param_2 = config_vec[1],
+                                                        config_param_3 = config_vec[2], 
+                                                        check_sum=0x00))
         checksum_out = self.__checksum_compute(checksum_in)
         # Pack the raw message
-        self.config_msg = handshake_config_msg.build(dict(header=k_ser_hs_header, slave_id=slave_address, frame_length = len(config_vec) + 5, config_param_1 = config_vec[0], check_sum=checksum_out))
+        self.config_msg = handshake_config_msg.build(dict(header=k_ser_hs_header, 
+                                                        slave_id=slave_address, 
+                                                        frame_length = len(config_vec) + 5, 
+                                                        config_param_1 = config_vec[0], 
+                                                        config_param_2 = config_vec[1], 
+                                                        config_param_3 = config_vec[2],
+                                                        check_sum=checksum_out))
         try:
             # Send the message over the serial port
             self.ser.write(self.config_msg)

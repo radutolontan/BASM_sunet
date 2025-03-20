@@ -14,24 +14,14 @@ import serial
 import crc16
 from src.RS485Manager import RS485_bus
 
-# ========= DEBUG ONLY ==========
-import matplotlib.pyplot as plt 
-from matplotlib.animation import FuncAnimation
-
-# ======= CONFIG. PARAMS ========
 # How often FFT features + Slave Boards are commanded
 k_freq = 60 # Hz
 k_sample_rate = 1 / k_freq # Sec
-# Compose Configuration Parameters for Slave Boards
-all_connected_slave_addresses = [0x05, 0x0a]      # List consisting of Slave Board addresses connected to RS485 BUS
-k_pixel_brightness = 40 # uint8t [0-255]
-k_config_vec = [k_pixel_brightness]
-
-
-# ====== TEMPORARY JERRY-RIG ======
-k_max_binned_value = 22
-k_byte_max = 255
-
+# SLAVE BOARD CONFIG
+# Slave Board addresses [In the ascending order of thei`r connections]
+all_connected_slave_addresses = [0x0a, 0x05]     
+# NOTE: the 3rd config paramater (kparam_slavenum) is dynamically attributed based on order of slave addresses in all_connected_slave_addresses
+kparam_brightness = 180 # uint8t [0-255]
 
 def parse_args():
     parser = argparse.ArgumentParser()
@@ -46,6 +36,8 @@ def parse_args():
                         help='float ratio of the visualizer window. e.g. 24/9')
     parser.add_argument('--sleep_between_frames', dest='sleep_between_frames', action='store_true',
                         help='when true process sleeps between frames to reduce CPU usage (recommended for low update rates)')
+    parser.add_argument('--colormap', type=int, default=0, dest='colormap',
+                        help='colormapno.')
     return parser.parse_args()
 
 def convert_window_ratio(window_ratio):
@@ -59,7 +51,15 @@ def convert_window_ratio(window_ratio):
     raise ValueError('window_ratio should be in the format: float/float')
 
 def run_lightbar():
+    # Import arguments from parser
     args = parse_args()
+    k_config_vec = [kparam_brightness, args.colormap]
+
+
+    # ====== TEMPORARY JERRY-RIG ======
+    k_max_binned_value = 26
+    k_byte_max = 255
+
     window_ratio = convert_window_ratio(args.window_ratio)
 
     # Launch Communications Bus
