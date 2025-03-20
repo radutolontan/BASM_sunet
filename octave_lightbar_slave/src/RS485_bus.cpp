@@ -53,7 +53,12 @@ bool RS485bus::read_frame(const std::vector<unsigned char>& header) {
                 old_frame = new_frame;
                 return true;
             }
-            else{return false;} // INCORRECT CHECKSUM!
+            else{
+                if (debug_mode){
+                    Serial.println("[RS485_bus] - [FAIL] - Corrupted Message Checksum!");
+                } 
+                return false;
+            } // INCORRECT CHECKSUM!
             
         }
     }
@@ -64,23 +69,16 @@ bool RS485bus::read_frame(const std::vector<unsigned char>& header) {
 // checksum_compute method definition
 int RS485bus::checksum_compute(const std::vector<unsigned char>& frame) {
     int sum = 0;
-    //Serial.println("[CHECKSUM_COMPUTE] - ENTERED");
-    //Serial.println("[CHECKSUM_COMPUTE] - FRAME ");
     for (unsigned char byte : frame) {
         sum += byte;
     }
     // Cast the result of the chechsum back into byte format
     unsigned char check_sum= static_cast<unsigned char>(sum%256);
-    //Serial.println("[CHECKSUM_COMPUTE] - CHECKSUM_OUT  ");
-    //Serial.print(check_sum);
-    //Serial.println();
     return check_sum;
 }
 
 // find_sync method definition
 bool RS485bus::find_sync(const std::vector<unsigned char>& header) {
-
-    //Serial.println("[FIND_SYNC] - ENTERED");
 
     unsigned long t_init = millis();
   
@@ -88,7 +86,6 @@ bool RS485bus::find_sync(const std::vector<unsigned char>& header) {
         if (serialPort.available()){
             // Try to read one byte
             unsigned char new_byte = serialPort.read();
-            //Serial.println("[FIND_SYNC] - RECIEVED BYTE " + String(new_byte));
 
             // If a byte was in fact recieved
             if (new_byte != -1) {
@@ -98,10 +95,8 @@ bool RS485bus::find_sync(const std::vector<unsigned char>& header) {
                     else if (new_frame.size() == 2){        // If we found the header bytes
                         if (new_byte == kslave_addr){       // Correct slave address
                             new_frame.push_back(new_byte);
-                            // Serial.println("[FIND_SYNC] - ADDRESS OK");
                             return true;}
                         else {                              // Incorrect slave address  
-                            // Serial.println("[FIND_SYNC] - INCORRECT ADDRESS");
                             return false;}                 
                     }
             } 

@@ -21,7 +21,7 @@ ledcontroller::ledcontroller(uint8_t output_type, std::vector<uint8_t> GPIO_hand
             GPIO(GPIO_handle),
             output_count(LED_count),
             last_cmd(0),
-            kdefault_brightness(80),
+            kdefault_brightness(40),
             debug_mode(debugmode){ 
 
     // Initialize the appropriate GPIO usage

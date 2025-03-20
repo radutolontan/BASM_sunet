@@ -7,7 +7,7 @@
 #include <algorithm>
    
 // ==============================================================
-const unsigned char k_slave_addr = 0x05; // === HARDCODED FOR NOW
+const unsigned char k_slave_addr = 0x0a; // === HARDCODED FOR NOW
 const bool debug_mode = true;
 // ==============================================================
 
@@ -80,9 +80,13 @@ void setup() {
 
 void loop() {
 
-    unsigned long startTime = 0;  // Capture start time
+     // Capture start time
+    unsigned long startTime = 0; 
     float executionTime = 0.0f;
     unsigned long endTime = 0;
+    unsigned long app_start_time = micros();
+    unsigned long last_status_time = micros();
+    float freq_display = 0.0f;
 
     // Clear display after the first command message is recieved
     bool app_running = false;
@@ -102,39 +106,38 @@ void loop() {
     while (true){
         // Read CMD Message from Serial Port
         if (comms_bus->read_frame(comms_bus->kser_cmd_header)){
-        // Compose command vector for all lightbars
-        std::vector<int> no_to_turn_on;
-        for (u_int8_t bar_index = 0; bar_index < 4; bar_index++){
-            no_to_turn_on.push_back(round(comms_bus->new_frame[4+bar_index]*k_factor));
+            // Compose command vector for all lightbars
+            std::vector<int> no_to_turn_on;
+            for (u_int8_t bar_index = 0; bar_index < 4; bar_index++){
+                no_to_turn_on.push_back(round(comms_bus->new_frame[4+bar_index]*k_factor));
+            }
+            
+
+            // Change all lightbar commands using command vector
+            u_int8_t bar_index = 0;
+            for (ledcontroller* lb : lightbar_vec) { 
+                lb->display_fft(no_to_turn_on[bar_index]); 
+                bar_index++;
+            }
+
+            // Collect time for freq calcs.
+            endTime = micros();  // Capture end time
+            executionTime = (endTime - startTime) / 1000000.0;  // Compute duration
+            freq_display = 1.0f / executionTime;
+            // RESET START TIME
+            startTime = micros(); 
         }
         
-
-        // Change all lightbar commands using command vector
-        u_int8_t bar_index = 0;
-        for (ledcontroller* lb : lightbar_vec) { 
-            lb->display_fft(no_to_turn_on[bar_index]); 
-            bar_index++;
+        if (int((micros() - last_status_time) / 1000000.0) >= 15){
+            if (debug_mode){
+                Serial.println("[main] - [INFO] - update freq. [Hz]- " + String(freq_display) + " ; time since boot [sec]- " + String(int((micros() - app_start_time) / 1000000.0)));
+            } 
+            last_status_time = micros();
         }
-
-
-        // TIME!
-        endTime = micros();  // Capture end time
-
-        // COMPUTE FREQUENCY
-        executionTime = (endTime - startTime) / 1000000.0;  // Compute duration
-        float freq_display = 1.0f / executionTime;
-
-
-        // RESET START TIME
-        startTime = micros(); 
-        }
-  
-}
+    
+    }
 }
 
-void setLEDs(uint8_t cmd){
-// FUNCTION DECLARATION
-}
 
 
 
