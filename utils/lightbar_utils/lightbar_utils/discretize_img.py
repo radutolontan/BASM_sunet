@@ -28,7 +28,7 @@ def visualize_matrix(matrix):
     plt.show()
 
 # Parameters
-image_path = "coastline.jpg"  # Replace with your actual image file
+image_path = "sunset.jpg"  # Replace with your actual image file
 x, y = 8, 30  # Adjust resolution for your NeoPixel strip
 
 # Process Image to RGB
@@ -52,7 +52,7 @@ for row in neopixel_array:
     print(" ".join(f"0x{val:08X}" for val in row)) 
 
 # Save to CSV
-np.savetxt("coastline.csv", neopixel_array, delimiter=",", fmt="0x%08X")  # Save in hex format
+np.savetxt("sunset.csv", neopixel_array, delimiter=",", fmt="%u")  # Save in uint32 format
 
 
 # Visualize Image
