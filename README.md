@@ -11,13 +11,13 @@ This repository uses a submodule to process the spectral composition of the soun
 submodule update --init --recursive
 ```
 
-### Structure of a frame
+### Structure of a Frame
 
 To communicate between the Master MCU and Monitor (or Slave) MCUs, the repository uses a serial protocol broadcast over an RS485 Bus. The protocol uses two types of frames, handshake and command.
 
 1. **Hanshake [HS]** messages are meant to configure the Slave Boards at run-time, and establish communications to the Master Board.
 - These are identified by a two-byte header [HEAD] {0xFF , 0xFE}
-- Each byte in the data field represents a parameter that the Master sends to all Slaves to configure at run-time
+- Each byte in the data field represents a parameter that the Master sends to Slaves to configure at run-time
     - Byte 1 - LED BRIGHTNESS ; 8-bit Integer [0-255]
     - Byte 2 - COLORMAP ID ; 8-bit Integer [0-255] ; See Loading Colormaps section for more details
     - Byte 3 - SLAVE NO ; Order of Slave MCU in chain ; [NOT TO BE CONFUSED W. SLAVE ADDRESS] ; 8-bit Integer [0-255] 
@@ -47,4 +47,30 @@ ADDR  ....... 1-byte address of Slave Board [between 0x00 and 0x08]
 LEN ......... number of bytes in the frame [including HEAD, ADDR, LEN, DATA, CHECKSUM]
 DATA ........ LEN-5 bytes of data
 DATA_CKSUM .. data checksum [computed using Modulo-256]
+
 ```
+
+### Colormap Management
+
+The Lightbars configured as NeoPixels are able to display a custom colormap or a stale color, as configured at runtime on each ESP32 Slave by the Master MCU.
+- This is configured through the 2nd Byte of the Handshake Message, COLORMAP ID; 0 confiures a stale color (hardcoded on the slaves), 1-n sets a colormap index - the Slave will then import that colormap from a CSV files stored on the SPIFFS memory
+- Colormaps are preloaded as .csv files on all Slave Boards and stored on their SPIFFS memory using the LittleFS library
+- Each .csv file is created by the `./utils/lightbar_utils/lightbar_utils/discretize_img.py` script
+    - To use ths script, place a .jpg file in the `./utils/lightbar_utils/lightbar_utils` directory
+    - Open the `discretize_img.py` script and edit
+        - the name of the .jpg file you added 
+        - the size of the discretization matrix (currently set to 30 by 8 for 8 strips with 30 LEDs each)
+        - the name of the output .csv file
+- After generating the .csv file, copy it to the  `/octave_lightbar_slave/data` directory
+- To upload .csv files to the ESP32
+    - Connect to the ESP32 via the UART Serial interface and find the appropriate `/dev/ttyUSB8` port
+    - Power on the ESP32
+    - In the PlatformIO terminal, delete all files in the LittleFS memory with
+    ```bash
+    pio run --target littlefs
+    ```
+    - In the PlatformIO terminal, upload all .csv files in the `/octave_lightbar_slave/data` directory to the LittleFS memory with
+    ```bash
+    pio run --target uploadfs    
+    ```
+    
